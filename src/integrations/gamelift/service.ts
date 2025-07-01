@@ -40,9 +40,8 @@ export const startStream = createServerFn({ method: 'POST' })
         Protocol: 'WebRTC' as const,
         Locations: data.locations || [process.env.GAMELIFT_REGION || 'us-west-2'],
         ConnectionTimeoutSeconds: 600, // 10 minutes (max allowed)
-        // SessionLengthSeconds: 14400, // 4 hour session limit
-        // optional for debugging
-        Description: `Public stream session started at ${new Date().toISOString().replace(/:/g, '-')}`
+        SessionLengthSeconds: 14400, // 4 hour session limit
+        Description: `Public stream session started at ${new Date().toISOString().replace(/:/g, '-')}` // optional for debugging
     };
     const command = new StartStreamSessionCommand(input);
 
@@ -59,6 +58,7 @@ export const startStream = createServerFn({ method: 'POST' })
             sessionArn: response.Arn,
             status: response.Status,
             streamSessionId: response.StreamGroupId,
+            streamGroupId: sgIdentifier,
             createdAt: new Date().toISOString()
         }
     } catch (error) {
@@ -83,45 +83,28 @@ export const startStream = createServerFn({ method: 'POST' })
 export const getStreamStatus = createServerFn({ method: 'GET' })
 .validator(z.object({
     sessionArn: z.string(),
+    streamGroupId: z.string(),
 }))
 .handler(async ({ data }) => {
-    const { sessionArn } = data;
+    const { sessionArn, streamGroupId } = data;
 
     console.log('getStreamStatus called with:', { sessionArn });
 
     const client = gameliftStreamsClient;
 
-    // Extract stream group ID and session ID from ARN if needed
-    // ARN format: arn:aws:gameliftstreams:region:account:streamsession/streamGroupId/sessionId
-    let streamGroupId: string;
-    let sessionId: string;
-    
-    if (sessionArn.startsWith('arn:')) {
-        const arnParts = sessionArn.split('/');
-        streamGroupId = arnParts[1];
-        sessionId = arnParts[2];
-        console.log('Parsed ARN:', { streamGroupId, sessionId });
-    } else {
-        // If not an ARN, assume it's just the session ID
-        sessionId = sessionArn;
-        streamGroupId = process.env.GAMELIFT_STREAM_GROUP_ID!;
-        console.log('Using session ID directly:', { sessionId, streamGroupId });
-    }
-
     const command = new GetStreamSessionCommand({
         Identifier: streamGroupId,
-        StreamSessionIdentifier: sessionId,
+        StreamSessionIdentifier: sessionArn
     });
     
     console.log('GetStreamSessionCommand parameters:', {
         Identifier: streamGroupId,
-        StreamSessionIdentifier: sessionId
+        StreamSessionIdentifier: sessionArn
     });
     
     try {
         const response = await client.send(command);
         
-        // Add detailed logging of the response
         console.log('=== FULL GetStreamSession Response ===');
         console.log('Status:', response.Status);
         console.log('StatusReason:', response.StatusReason);
@@ -151,7 +134,7 @@ export const getStreamStatus = createServerFn({ method: 'GET' })
             if (error.name === 'ResourceNotFoundException') {
                 throw new Error('Stream session not found. It may have been terminated.');
             } else if (error.name === 'AccessDeniedException') {
-                throw new Error('Access denied. Please check your AWS credentials and permissions.');
+                throw new Error('Access denied.');
             }
         }
         console.error('GameLift API Error:', error);
@@ -162,30 +145,18 @@ export const getStreamStatus = createServerFn({ method: 'GET' })
 export const terminateStream = createServerFn({ method: 'POST' })
 .validator(z.object({
     sessionArn: z.string(),
+    streamGroupId: z.string(),
 }))
 .handler(async ({ data }) => {
-    const { sessionArn } = data;
+    const { sessionArn, streamGroupId } = data;
 
     console.log('terminateStream called with:', { sessionArn });
 
     const client = gameliftStreamsClient;
-    let streamGroupId: string;
-    let sessionId: string;
-    
-    if (sessionArn.startsWith('arn:')) {
-        const arnParts = sessionArn.split('/');
-        streamGroupId = arnParts[1];
-        sessionId = arnParts[2];
-        console.log('Parsed ARN:', { streamGroupId, sessionId });
-    } else {
-        // If not an ARN, assume it's just the session ID
-        sessionId = sessionArn;
-        streamGroupId = process.env.GAMELIFT_STREAM_GROUP_ID!;
-        console.log('Using session ID directly:', { sessionId, streamGroupId });
-    }
+
     const input = {
         Identifier: streamGroupId,
-        StreamSessionIdentifier: sessionId,
+        StreamSessionIdentifier: sessionArn
     }
     const command = new TerminateStreamSessionCommand(input);
 

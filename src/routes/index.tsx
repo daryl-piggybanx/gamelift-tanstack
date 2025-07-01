@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { PublicStream } from '../components/PublicStream'
+import PublicStream from '../components/PublicStream'
 
 export const Route = createFileRoute('/')({
   component: Home,
