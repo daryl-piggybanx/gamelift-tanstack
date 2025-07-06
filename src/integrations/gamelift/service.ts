@@ -2,43 +2,69 @@ import { createServerFn } from "@tanstack/react-start";
 import { GameLiftStreamsClient, StartStreamSessionCommand, GetStreamSessionCommand, TerminateStreamSessionCommand } from '@aws-sdk/client-gameliftstreams';
 import { z } from 'zod';
 
+const AWS_ACCESS_KEY_ID = import.meta.env.VITE_AWS_ACCESS_KEY_ID
+const AWS_SECRET_ACCESS_KEY = import.meta.env.VITE_AWS_SECRET_ACCESS_KEY
+const GAMELIFT_REGION = import.meta.env.VITE_GAMELIFT_REGION
+
+const STREAM_GROUP_ID = import.meta.env.VITE_GAMELIFT_STREAM_GROUP_ID
+const APP_ID = import.meta.env.VITE_GAMELIFT_APP_ID
+
 const gameliftStreamsClient = new GameLiftStreamsClient({
-    region: process.env.GAMELIFT_REGION || 'us-west-2',
+    region: GAMELIFT_REGION,
     credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      accessKeyId: AWS_ACCESS_KEY_ID,
+      secretAccessKey: AWS_SECRET_ACCESS_KEY,
     }
 });
 
 export const startStream = createServerFn({ method: 'POST' })
 .validator(z.object({
-    signalRequest: z.string(),
-    userId: z.string().optional(),
-    locations: z.array(z.string()).optional(),
-    appIdentifier: z.string().optional(),
-    sgIdentifier: z.string().optional(),
+    StreamGroupId: z.string().optional(),
+    ApplicationIdentifier: z.string().optional(),
+    UserId: z.string(),
+    SignalRequest: z.string(),
+    AdditionalLaunchArgs: z.array(z.string()).optional(),
+    AdditionalEnvironmentVariables: z.record(z.string()).optional(),
+    Locations: z.array(z.string()).optional()
 }))
 .handler(async ({ data }) => {
-    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY) {
+    console.log('=== CreateStreamSession Debug Info ===');
+    console.log('Request data:', JSON.stringify(data, null, 2));
+    console.log('Environment variables:');
+    console.log('- GAMELIFT_STREAM_GROUP_ID:', STREAM_GROUP_ID);
+    console.log('- GAMELIFT_APP_ID:', APP_ID);
+    console.log('=====================================');
+
+    if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
         throw new Error('AWS credentials are not configured');
     }
 
-    const appIdentifier = data.appIdentifier || process.env.GAMELIFT_APP_ID;
-    const sgIdentifier = data.sgIdentifier || process.env.GAMELIFT_STREAM_GROUP_ID;
+    if (!STREAM_GROUP_ID || !APP_ID) {
+        throw new Error('GameLift stream group and application identifiers are required');
+    }
 
-    if (!appIdentifier || !sgIdentifier) {
+    if (!data.SignalRequest) {
+        throw new Error('Signal request is required');
+    }
+
+    const appIdentifier = data.ApplicationIdentifier || APP_ID;
+    const streamGroupIdentifierr = data.StreamGroupId || STREAM_GROUP_ID;
+
+    if (!appIdentifier || !streamGroupIdentifierr) {
         throw new Error('GameLift application and stream group identifiers are required');
     }
 
     const client = gameliftStreamsClient;
     
     const input = {
-        Identifier: sgIdentifier,
+        Identifier: streamGroupIdentifierr,
         ApplicationIdentifier: appIdentifier,
-        SignalRequest: data.signalRequest,
-        UserId: data.userId || `anonymous-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        AdditionalLaunchArgs: data.AdditionalLaunchArgs || [],
+        AdditionalEnvironmentVariables: data.AdditionalEnvironmentVariables || {},
+        UserId: data.UserId,
         Protocol: 'WebRTC' as const,
-        Locations: data.locations || [process.env.GAMELIFT_REGION || 'us-west-2'],
+        SignalRequest: data.SignalRequest,
+        Locations: data.Locations || [GAMELIFT_REGION || 'us-west-2'],
         ConnectionTimeoutSeconds: 600, // 10 minutes (max allowed)
         SessionLengthSeconds: 14400, // 4 hour session limit
         Description: `Public stream session started at ${new Date().toISOString().replace(/:/g, '-')}` // optional for debugging
@@ -48,18 +74,19 @@ export const startStream = createServerFn({ method: 'POST' })
     try {
         const response = await client.send(command);
 
-        console.log(`Stream session created: ${response.Arn}`)
-        // console.log(`Signal response: ${response.SignalResponse}`)
-        console.log(`Status: ${response.Status}`)
-        console.log(`Stream session ARN: ${response.Arn}`)
+        console.log(`CreateStreamSession success: Arn=${response.Arn}`);
+        console.log(`Signal response available: ${!!response.SignalResponse}`);
+        console.log(`Status: ${response.Status}`);
 
         return {
+            sessionArn: response.Arn!,
+            streamGroupId: streamGroupIdentifierr,
             signalResponse: response.SignalResponse,
-            sessionArn: response.Arn,
             status: response.Status,
-            streamSessionId: response.StreamGroupId,
-            streamGroupId: sgIdentifier,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            userId: data.UserId,
+            applicationIdentifier: appIdentifier,
+            location: response.Location
         }
     } catch (error) {
         if (error instanceof Error) {
@@ -168,6 +195,39 @@ export const terminateStream = createServerFn({ method: 'POST' })
         }
     } catch (error) {
         console.error('TerminateStreamSession error:', error);
-        throw new Error(`Failed to terminate stream: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        if (error instanceof Error) {
+            if (error.name === 'ResourceNotFoundException') {
+                throw new Error('Stream session not found. It may have already been terminated.');
+            } else if (error.name === 'InvalidRequestException') {
+                throw new Error('Invalid request. The session may already be in a terminating state.');
+            }
+            
+            throw new Error(`Failed to terminate stream: ${error.message}`);
+        }
+        
+        throw new Error('Failed to terminate stream: Unknown error');
+    }
+})
+
+export const healthCheck = createServerFn({ method: 'GET' })
+.handler(async () => {
+    return {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        gameLiftRegion: GAMELIFT_REGION,
+    }
+})
+
+export const getDebugInfo = createServerFn({ method: 'GET' })
+.handler(async () => {
+    return {
+        timestamp: new Date().toISOString(),
+        environment: {
+            AWS_ACCESS_KEY_ID,
+            AWS_SECRET_ACCESS_KEY,
+            GAMELIFT_REGION,
+            STREAM_GROUP_ID,
+            APP_ID,
+        }
     }
 })

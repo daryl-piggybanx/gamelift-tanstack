@@ -11,7 +11,6 @@ import { NotFound } from './components/NotFound'
 
 export function createRouter() {
   const queryClient = new QueryClient()
-
   return routerWithQueryClient(
     createTanStackRouter({
       routeTree,

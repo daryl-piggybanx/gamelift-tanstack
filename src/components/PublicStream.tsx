@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { startStream, getStreamStatus, terminateStream } from '../integrations/gamelift/service'
 
@@ -41,6 +41,19 @@ export default function PublicStream() {
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
         }
     }, [])
+
+    const handleDisconnect = useCallback(() => {
+        if (gameStream) {
+            try {
+                gameStream.close()
+            } catch (error) {
+                console.error('Error closing GameLift Streams:', error);
+            }
+        }
+        setIsInputAttached(false)
+        setConnectionState('disconnected')
+    }, [gameStream]);
+
    // init SDK
    useEffect(() => {
     if (!videoRef.current || !audioRef.current) return;
@@ -92,21 +105,35 @@ export default function PublicStream() {
 
         const gameStream = new gameliftstreamssdk.GameLiftStreams(streamConfig);
         setGameStream(gameStream);
+        console.log('GameLift Streams initialized successfully');
     } catch (error) {
         console.error('Error initializing GameLift Streams:', error);
         handleDisconnect();
     }
-   }, [videoRef.current, audioRef.current])
+
+    // cleanup
+    return () => {
+        console.log('🧹 Cleaning up GameLift Streams...');
+        if (gameStream) {
+            try {
+                gameStream.close();
+            } catch (error) {
+                console.error('Error closing GameLift Streams:', error);
+            }
+        }
+    };
+   }, [handleDisconnect])
   
-   const mutate = useMutation({
+   const startMutation = useMutation({
     mutationFn: startStream,
     onSuccess: (data) => {
         setSessionArn(data.sessionArn || null);
         setStreamGroupId(data.streamGroupId || null);
-        // setIsInputAttached(true);
-        // gameStream?.attachInput();
+        setIsInputAttached(true);
+        gameStream?.attachInput();
     }
    })
+
    const terminateMutation = useMutation({
     mutationFn: terminateStream,
     onSuccess: () => {
@@ -128,8 +155,14 @@ export default function PublicStream() {
     enabled: !!sessionArn && !!streamGroupId && !!gameStream,
     refetchInterval: (data) => {
         console.log('streamStatus', data);
-        // poll until status is ACTIVE or CONNECTED
-        return data?.status === 'ACTIVE' || data?.status === 'CONNECTED' ? false : 2000;
+
+        const status = data?.state?.data?.status || data?.status;
+
+        // poll until status is ACTIVE (ready for WebRTC) or CONNECTED
+        if (status === 'ACTIVE' || status === 'CONNECTED') {
+            console.log('✅ stream ready, stopping poll');
+            return false;
+        }
     },
     gcTime: 0 // don't cache, always refresh
    })
@@ -142,14 +175,23 @@ export default function PublicStream() {
         gameStream &&
         connectionState !== 'connected'
        ) {
+            console.log('🎯 Stream is ACTIVE, processing signal response...');
             processSignalResponse(streamStatus.signalResponse);
        }
    }, [streamStatus, gameStream, connectionState])
 
    const processSignalResponse = async (signalResponse: string) => {
     if (!gameStream) return;
+    if (!videoRef.current || !audioRef.current) {
+        console.error('❌ Video/Audio elements not available during signal processing');
+        return;
+    }
+
     try {
         console.log('Processing signal response...', signalResponse);
+        const parsedSignal = JSON.parse(signalResponse);
+        console.log('📡 Signal type:', parsedSignal.type);
+        console.log('🌐 WebSDK Protocol URL:', parsedSignal.webSdkProtocolUrl);
         await gameStream.processSignalResponse(signalResponse);
         console.log('Signal response processed successfully');
     } catch (error) {
@@ -165,13 +207,13 @@ export default function PublicStream() {
     }
     
     try {
-        console.log('Generating signal request...')
+        console.log('📡Generating signal request...')
         const signalRequest = await gameStream.generateSignalRequest();
-        console.log('Signal request generated successfully');
-        await mutate.mutateAsync({
+        console.log('✅ Signal request generated successfully');
+        await startMutation.mutateAsync({
             data: {
-                signalRequest,
-                   userId: `player-${Date.now()}`
+                SignalRequest: signalRequest,
+                UserId: `player-${Date.now()}`
                }
            })
        } catch (error) {
@@ -192,22 +234,21 @@ export default function PublicStream() {
    }
    }
 
-   const handleDisconnect = () => {
-    if (gameStream) {
-      gameStream.close()
-    }
-    setIsInputAttached(false)
-    setConnectionState('disconnected')
-  }
 
   const toggleInput = () => {
     if (!gameStream) return;
-    if (isInputAttached) {
-        gameStream.detachInput();
-        setIsInputAttached(false);
-    } else {
-        gameStream.attachInput();
-        setIsInputAttached(true);
+    try {
+        if (isInputAttached) {
+            gameStream.detachInput();
+            setIsInputAttached(false);
+            console.log('🎮 Input detached');
+        } else {
+            gameStream.attachInput();
+            setIsInputAttached(true);
+            console.log('🎮 Input attached');
+        }
+    } catch (error) {
+        console.error('❌ Error toggling input:', error);
     }
   }
 
@@ -234,33 +275,32 @@ export default function PublicStream() {
   }
 
    const getStatusDisplay = () => {
-    if (!gameStream) return 'Initializing...'
-       if (!sessionArn) return 'Ready to start'
-       if (!streamStatus) return 'Initialize Stream...'
+    if (!gameStream) return '⚙️ Initializing SDK...';
+    if (!sessionArn) return '🎮 Ready to start';
+    if (!streamStatus) return '📡 Loading stream status...';
        
-       const baseStatus = `Status: ${streamStatus.status}`
-       const reason = streamStatus.statusReason ? ` (${streamStatus.statusReason})` : ''
+    const reason = streamStatus?.statusReason ? ` (${streamStatus.statusReason})` : '';
        
-       switch (streamStatus.status) {
-       case 'ACTIVATING':
-           return 'Preparing stream - Starting application...'
-       case 'ACTIVE':
-           return connectionState === 'connected' ? 'Connected and streaming!' : 'Connecting...'
-       case 'CONNECTED':
-           return 'Connected and streaming!'
-       case 'ERROR':
-           return `Stream error${reason}`
-       case 'TERMINATED':
-           return 'Stream session ended'
-       case 'TERMINATING':
-           return 'Terminating stream session...'
-       case 'PENDING_CLIENT_RECONNECTION':
-           return 'Waiting for client to reconnect...'
-       case 'RECONNECTING':
-           return 'Reconnecting to stream...'
-       default:
-           return `${baseStatus}${reason}`
-       }
+    switch (streamStatus?.status) {
+        case 'ACTIVATING':
+            return '🚀 Preparing stream - Starting application...';
+        case 'ACTIVE':
+            return connectionState === 'connected' ? '✅ Connected and streaming!' : '🔄 Connecting...';
+        case 'CONNECTED':
+            return '✅ Connected and streaming!';
+        case 'ERROR':
+            return `❌ Stream error${reason}`;
+        case 'TERMINATED':
+            return '🛑 Stream session ended';
+        case 'TERMINATING':
+            return '⏹️ Terminating stream session...';
+        case 'PENDING_CLIENT_RECONNECTION':
+            return '⏳ Waiting for client to reconnect...';
+        case 'RECONNECTING':
+            return '🔄 Reconnecting to stream...';
+        default:
+            return `📊 Status: ${streamStatus?.status}${reason}`;
+    }
    }
 
    return (
@@ -268,10 +308,10 @@ export default function PublicStream() {
        <div className="controls mb-4 space-x-2">
            <button
            onClick={handleStartStream}
-           disabled={mutate.isPending || !!sessionArn}
+           disabled={startMutation.isPending || !!sessionArn}
            className="bg-slate-200 text-slate-800 px-4 py-2 rounded disabled:bg-gray-400"
            >
-           {mutate.isPending ? 'Starting...' : 
+           {startMutation.isPending ? 'Starting...' : 
            sessionArn ? 'Stream Started' : 'Play Game'}
            </button>
            {sessionArn && (
@@ -340,9 +380,9 @@ export default function PublicStream() {
             </div>
 
         {/* Error Display */}
-        {(mutate.error || terminateMutation.error) && (
+        {(startMutation.error || terminateMutation.error) && (
           <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            <strong>Error:</strong> {mutate.error?.message || terminateMutation.error?.message}
+            <strong>Error:</strong> {startMutation.error?.message || terminateMutation.error?.message}
           </div>
         )}
        </div>
