@@ -1,17 +1,29 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { startStream, getStreamStatus, terminateStream } from '../integrations/gamelift/service'
+import { useSessionManager } from '~/hooks/session-manager'
+import { GameSession } from '~/integrations/gamelift/types'
 
 import * as gameliftstreamssdk from '../gamelift-streams-websdk/gameliftstreams-1.0.0'
 
 export default function PublicStream() {
+    const queryClient = useQueryClient();
+
    const videoRef = useRef<HTMLVideoElement>(null);
    const audioRef = useRef<HTMLAudioElement>(null);
-   const [sessionArn, setSessionArn] = useState<string | null>(null);
-   const [streamGroupId, setStreamGroupId] = useState<string | null>(null);
-
+//    const [sessionArn, setSessionArn] = useState<string | null>(null);
+//    const [streamGroupId, setStreamGroupId] = useState<string | null>(null);
+    const {
+        currentSession,
+        setCurrentSession,
+        streamConnected,
+        setStreamConnected,
+        saveSession,
+        clearSession,
+        loadSession
+    } = useSessionManager();
    const [gameStream, setGameStream] = useState<gameliftstreamssdk.GameLiftStreams | null>(null);
    const [isInputAttached, setIsInputAttached] = useState(false);
 //    const [isInputEnabled, setIsInputEnabled] = useState(false);
@@ -28,6 +40,9 @@ export default function PublicStream() {
 //    const [isAutoPointerLockEnabled, setIsAutoPointerLockEnabled] = useState(true);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
+    const [sdkInitialized, setSdkInitialized] = useState(false);
+    const [isStreamStarted, setIsStreamStarted] = useState(false);
+
     // track fullscreen state
     useEffect(() => {
         const handleFullscreenChange = () => {
@@ -42,6 +57,52 @@ export default function PublicStream() {
         }
     }, [])
 
+    useEffect(() => {
+        console.log('🔍 Debugging session loading...');
+        console.log('🔍 sessionStorage contents:', sessionStorage.getItem('gameSessionData'));
+        console.log('🔍 currentSession state:', currentSession);
+        
+        const sessionData = sessionStorage.getItem('gameSessionData');
+        if (!sessionData) {
+            console.log('📭 No session data in storage');
+            return;
+        }
+    
+        try {
+            const parsed = JSON.parse(sessionData) as GameSession;
+            console.log('🔍 Parsed session:', parsed);
+            
+            const now = Date.now();
+            const sessionAge = now - parsed.timestamp;
+            const maxAge = 3600000; // 1 hour
+    
+            console.log('🔍 Session age:', Math.round(sessionAge / 1000), 'seconds');
+            console.log('🔍 Max age:', Math.round(maxAge / 1000), 'seconds');
+    
+            if (sessionAge > maxAge) {
+                console.log('⏰ Session expired (would clear in other effect)');
+                // DON'T actually clear here - let the other effect handle it
+                return;
+            }
+    
+            console.log('✅ Valid session found (will be loaded by other effect)');
+            // DON'T call setCurrentSession here - let loadSession() handle it
+        } catch (error) {
+            console.error('❌ Failed to parse session:', error);
+            // DON'T clear sessionStorage here either
+        }
+    }, []); // ✅ Run only once on mount for debugging
+
+    // Load existing session on mount
+    useEffect(() => {
+        const existingSession = loadSession();
+        if (existingSession) {
+            console.log('🔄 Resuming existing session:', existingSession.sessionArn);
+            setCurrentSession(existingSession);
+        }
+    }, [loadSession]);
+
+    /*
     const handleDisconnect = useCallback(() => {
         if (gameStream) {
             try {
@@ -53,10 +114,40 @@ export default function PublicStream() {
         setIsInputAttached(false)
         setConnectionState('disconnected')
     }, [gameStream]);
+    */
 
-   // init SDK
+    // session-based disconnect handler
+    const handleDisconnect = useCallback(() => {
+        console.log('🔌 Disconnecting...');
+        setIsInputAttached(false);
+        setConnectionState('disconnected');
+        setStreamConnected(false);
+        setIsStreamStarted(false);
+        
+        // Update session status but don't clear it (for reconnection)
+        if (currentSession) {
+            const updatedSession: GameSession = { 
+                ...currentSession, 
+                status: 'terminated' 
+            };
+            saveSession(updatedSession);
+        }
+    }, [currentSession, saveSession, setStreamConnected]);
+
+
+   // init SDK (session-based)
    useEffect(() => {
-    if (!videoRef.current || !audioRef.current) return;
+    if (sdkInitialized || !videoRef.current || !audioRef.current) return;
+
+    const videoElement = videoRef.current;
+    const audioElement = audioRef.current;
+
+    if (!videoElement.isConnected || !audioElement.isConnected) {
+        console.log('⏳ Elements not yet connected...');
+        return;
+    }
+
+    console.log('🎮 Initializing GameLift Streams SDK...');
 
     try {
         gameliftstreamssdk.setLogLevel('debug');
@@ -68,24 +159,31 @@ export default function PublicStream() {
                 connectionState: (state: string) => {
                     console.log('Connection state changed:', state)
                     setConnectionState(state);
-                    if (state === 'disconnected') {
+                    if (state === 'connected') {
+                        setStreamConnected(true);
+                        const current = JSON.parse(sessionStorage.getItem('gameSessionData') || 'null');
+                        if (current) {
+                            const updatedSession: GameSession = { ...current, status: 'active' };
+                            saveSession(updatedSession);
+                        }
+                    } else if (state === 'disconnected') {
                         handleDisconnect();
                     }
                 },
                 channelError: (error: any) => {
-                    console.error('Channel error:', error);
+                    console.error('📡 Channel error:', error);
                     handleDisconnect();
                 },
                 serverDisconnect: (reason: string) => {
-                    console.log('Server disconnected:', reason);
+                    console.log('🔴 Server disconnected:', reason);
                     if (reason === 'terminated') {
-                        setSessionArn(null);
-                        setStreamGroupId(null);
+                        clearSession(); // Clear session on termination
+                    } else {
+                        handleDisconnect(); // Keep session for reconnection
                     }
-                    handleDisconnect();
                 },
                 applicationMessage: (message: Uint8Array) => {
-                    console.log('Application message received:', message);
+                    console.log('📨 Application message received:', message);
                 }
             },
             inputConfiguration: {
@@ -105,13 +203,14 @@ export default function PublicStream() {
 
         const gameStream = new gameliftstreamssdk.GameLiftStreams(streamConfig);
         setGameStream(gameStream);
-        console.log('GameLift Streams initialized successfully');
+        setSdkInitialized(true);
+        console.log('✅ GameLift Streams initialized successfully');
     } catch (error) {
         console.error('Error initializing GameLift Streams:', error);
         handleDisconnect();
     }
 
-    // cleanup
+    // cleanup on unmount
     return () => {
         console.log('🧹 Cleaning up GameLift Streams...');
         if (gameStream) {
@@ -121,48 +220,106 @@ export default function PublicStream() {
                 console.error('Error closing GameLift Streams:', error);
             }
         }
+        // SdkInitialized(false);
     };
-   }, [handleDisconnect])
+   }, [sdkInitialized])
   
    const startMutation = useMutation({
     mutationFn: startStream,
     onSuccess: (data) => {
-        setSessionArn(data.sessionArn || null);
-        setStreamGroupId(data.streamGroupId || null);
-        setIsInputAttached(true);
-        gameStream?.attachInput();
+        console.log('🚀 Stream started successfully:', data)
+
+        // prevent stale data from multiple instances
+        queryClient.removeQueries({ queryKey: ['stream-status'] });
+
+        const newSession: GameSession = {
+            sessionArn: data.sessionArn!,
+            streamGroupId: data.streamGroupId!,
+            userId: data.userId!,
+            applicationId: data.applicationIdentifier!,
+            location: data.location || 'us-west-2',
+            timestamp: Date.now(),
+            status: 'connecting'
+        };
+        
+        saveSession(newSession);
+        setIsStreamStarted(true);
+        // setIsInputAttached(true);
+        // gameStream?.attachInput();
+
+            // TEMPORARY DEBUG:
+        setTimeout(() => {
+            console.log('🔍 POST-START DEBUG:', {
+                isStreamStarted,
+                currentSession: currentSession?.sessionArn?.slice(-8),
+                gameStream: !!gameStream,
+                sdkInitialized
+            });
+        }, 100);
     }
    })
 
    const terminateMutation = useMutation({
     mutationFn: terminateStream,
     onSuccess: () => {
-        setSessionArn(null);
-        setStreamGroupId(null);
+        clearSession();
         handleDisconnect();
+
+        // for stale session data
+        queryClient.invalidateQueries({ queryKey: ['stream-status'] });
     }
    })
 
    // poll stream status
-   const { data: streamStatus }  = useQuery({
-    queryKey: ['stream-status', sessionArn, streamGroupId],
+   const { data: streamStatus, error: streamStatusError } = useQuery({
+    queryKey: ['stream-status', currentSession?.sessionArn, currentSession?.streamGroupId],
     queryFn: () => getStreamStatus({ 
         data: { 
-            sessionArn: sessionArn || '', 
-            streamGroupId: streamGroupId || '' 
+            sessionArn: currentSession!.sessionArn, 
+            streamGroupId: currentSession!.streamGroupId,
         } 
     }),
-    enabled: !!sessionArn && !!streamGroupId && !!gameStream,
-    refetchInterval: (data) => {
-        console.log('streamStatus', data);
+    enabled:!!currentSession?.sessionArn && !!currentSession?.streamGroupId && !!gameStream && !!sdkInitialized && isStreamStarted,
+    refetchInterval: (query) => {
+        console.log('refetchInterval query: ', query);
+        // console.log('refetchInterval data: ', data);
+        // console.log('📊 refetchInterval called');
 
-        const status = data?.state?.data?.status || data?.status;
-
-        // poll until status is ACTIVE (ready for WebRTC) or CONNECTED
-        if (status === 'ACTIVE' || status === 'CONNECTED') {
-            console.log('✅ stream ready, stopping poll');
+        // check if query is for the current session
+        const currentSessionArn = currentSession?.sessionArn;
+        const querySessionArn = query.queryKey[1];
+        
+        if (currentSessionArn && querySessionArn && currentSessionArn !== querySessionArn) {
+            console.log('📊 STOP - Stale query (different session)');
             return false;
         }
+        
+        // console.log('📊 Query enabled:', query?.options?.enabled);
+        console.log('📊 Current session ARN:', currentSession?.sessionArn);
+
+        const data = query.state.data;
+        const status = data?.status;
+
+        console.log('refetchInterval streamStatus: ', status);
+
+        // poll until status is ACTIVE (ready for WebRTC) or CONNECTED
+        if (status === 'ACTIVE' || status === 'CONNECTED' || streamConnected) {
+            return false; // stop polling
+        }
+
+        if (status === 'ACTIVATING' || !data) {
+            console.log('📊 CONTINUE - activating or no data yet');
+            return 2000;
+        }
+
+        if (status === 'ERROR' || status === 'TERMINATED') {
+            console.log('📊 Stop - terminal state');
+            return false;
+        }
+
+        // Default: stop
+        console.log('📊 STOP - default');
+        return false;
     },
     gcTime: 0 // don't cache, always refresh
    })
@@ -173,15 +330,20 @@ export default function PublicStream() {
         streamStatus?.status === 'ACTIVE' && 
         streamStatus.signalResponse && 
         gameStream &&
-        connectionState !== 'connected'
+        !streamConnected && // Only process once per session
+        currentSession
        ) {
             console.log('🎯 Stream is ACTIVE, processing signal response...');
             processSignalResponse(streamStatus.signalResponse);
        }
-   }, [streamStatus, gameStream, connectionState])
+   }, [streamStatus, gameStream, streamConnected, currentSession])
 
    const processSignalResponse = async (signalResponse: string) => {
-    if (!gameStream) return;
+    if (!gameStream || streamConnected) {
+        console.log('⚠️ Skipping signal processing - already connected or no SDK');
+        return;
+    }
+
     if (!videoRef.current || !audioRef.current) {
         console.error('❌ Video/Audio elements not available during signal processing');
         return;
@@ -189,11 +351,15 @@ export default function PublicStream() {
 
     try {
         console.log('Processing signal response...', signalResponse);
+
         const parsedSignal = JSON.parse(signalResponse);
         console.log('📡 Signal type:', parsedSignal.type);
         console.log('🌐 WebSDK Protocol URL:', parsedSignal.webSdkProtocolUrl);
+
         await gameStream.processSignalResponse(signalResponse);
         console.log('Signal response processed successfully');
+
+        setStreamConnected(true);
     } catch (error) {
         console.error('Error processing signal response:', error);
         handleDisconnect();
@@ -201,11 +367,28 @@ export default function PublicStream() {
    }
 
    const handleStartStream = async () => {
-    if (!gameStream) {
-        console.error('GameLift Streams not initialized')
+    if (!gameStream || !sdkInitialized) {
+        console.error('❌ GameLift Streams not initialized');
         return;
     }
-    
+
+    // if an existing session, terminate it first
+    if (currentSession) {
+        console.log('🔄 Terminating existing session before starting new one...');
+        try {
+            await terminateMutation.mutateAsync({
+                data: { 
+                    sessionArn: currentSession.sessionArn, 
+                    streamGroupId: currentSession.streamGroupId 
+                }
+            });
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+            console.warn('⚠️ Failed to terminate existing session, continuing anyway');
+            clearSession();
+        }
+    }  
+
     try {
         console.log('📡Generating signal request...')
         const signalRequest = await gameStream.generateSignalRequest();
@@ -222,21 +405,49 @@ export default function PublicStream() {
    }
 
    const handleTerminateStream = async () => {
-    if (!sessionArn || !streamGroupId) return;
-
+    if (!currentSession) {
+        console.log('⚠️ No active session to terminate');
+        return;
+    }
     try {
         await terminateMutation.mutateAsync({
-            data: { sessionArn, streamGroupId }
+            data: { 
+                sessionArn: currentSession.sessionArn, 
+                streamGroupId: currentSession.streamGroupId 
+            }
        })
        console.log('Stream terminated successfully');
    } catch (error) {
        console.error('Failed to terminate stream:', error);
+       clearSession();
    }
    }
 
+   const handleReconnectSession = async () => {
+    if (!currentSession || !gameStream) {
+        console.log('⚠️ No session to reconnect or SDK not ready');
+        return;
+    }
+
+    console.log('🔄 Attempting to reconnect to existing session...');
+    setIsStreamStarted(true);
+    
+    // force refresh the stream status to check if session is still valid
+    try {
+        await queryClient.invalidateQueries({ 
+            queryKey: ['stream-status', currentSession.sessionArn, currentSession.streamGroupId] 
+        });
+        console.log('🔄 Reconnection attempt initiated via status refresh');
+    } catch (error) {
+        console.error('❌ Reconnection failed:', error);
+        setIsStreamStarted(false);
+        clearSession();
+    }
+   };
 
   const toggleInput = () => {
-    if (!gameStream) return;
+    if (!gameStream || !sdkInitialized) return;
+
     try {
         if (isInputAttached) {
             gameStream.detachInput();
@@ -275,12 +486,12 @@ export default function PublicStream() {
   }
 
    const getStatusDisplay = () => {
-    if (!gameStream) return '⚙️ Initializing SDK...';
-    if (!sessionArn) return '🎮 Ready to start';
-    if (!streamStatus) return '📡 Loading stream status...';
-       
+    if (!sdkInitialized) return '⚙️ Initializing SDK...';
+    if (!gameStream) return '⚙️ Setting up SDK...';
+    console.log('streamStatus: ', streamStatus);
     const reason = streamStatus?.statusReason ? ` (${streamStatus.statusReason})` : '';
-       
+    console.log('streamStatus?.status: ', streamStatus?.status);
+    
     switch (streamStatus?.status) {
         case 'ACTIVATING':
             return '🚀 Preparing stream - Starting application...';
@@ -299,22 +510,69 @@ export default function PublicStream() {
         case 'RECONNECTING':
             return '🔄 Reconnecting to stream...';
         default:
-            return `📊 Status: ${streamStatus?.status}${reason}`;
+            return ``;
     }
    }
 
+
+  // ✅ DEBUG: Create test session to verify query behavior
+  const createTestSession = () => {
+    const testSession: GameSession = {
+        sessionArn: 'arn:aws:gameliftstreams:us-west-2:123456789:streamsession/sg-428ua6I76/test-session',
+        streamGroupId: 'sg-428ua6I76',
+        userId: 'test-user',
+        applicationId: 'a-MW4ufczOV',
+        location: 'us-west-2',
+        timestamp: Date.now(),
+        status: 'connecting'
+    };
+    console.log('🧪 Creating test session for debugging');
+    setCurrentSession(testSession);
+   };
+
+   const canStartNewSession = sdkInitialized && gameStream && !streamConnected;
+   const hasActiveSession = currentSession && currentSession.status !== 'terminated';
+   const canReconnect = hasActiveSession && !streamConnected;
+
    return (
        <div className="public-game-container p-4">
-       <div className="controls mb-4 space-x-2">
+        {/* Session Debug Info */}
+        <div className="mb-4 p-2 bg-slate-100 text-slate-800 rounded text-xs">
+            <p><strong>SDK:</strong> {sdkInitialized ? '✅ Ready' : '❌ Not Ready'}</p>
+            <p><strong>Session:</strong> {hasActiveSession ? `✅ ${currentSession?.sessionArn?.slice(-8)}` : '❌ None'}</p>
+            <p><strong>Connection:</strong> {connectionState} | Stream: {streamConnected ? '✅' : '❌'}</p>
+        </div>
+        {/* Stream controls */}
+       <div className="mb-4 space-x-2">
            <button
            onClick={handleStartStream}
-           disabled={startMutation.isPending || !!sessionArn}
-           className="bg-slate-200 text-slate-800 px-4 py-2 rounded disabled:bg-gray-400"
+           disabled={startMutation.isPending || (!canStartNewSession && !canReconnect)}
+           className="bg-slate-80 text-slate-100px-4 py-2 rounded disabled:bg-gray-400"
            >
-           {startMutation.isPending ? 'Starting...' : 
-           sessionArn ? 'Stream Started' : 'Play Game'}
+                {startMutation.isPending ? 'Starting...' : 
+                canStartNewSession ? '🔄 Start New Session' : '🎮 Start Session'}
            </button>
-           {sessionArn && (
+
+           {canReconnect && (
+            <>
+               <button
+                onClick={createTestSession}
+                className="bg-yellow-500 text-white px-4 py-2 rounded text-xs"
+            >
+                🧪 Test Session
+            </button>
+               <button
+               onClick={handleReconnectSession}
+               disabled={startMutation.isPending}
+               className="bg-blue-200 text-blue-800 px-4 py-2 rounded disabled:bg-gray-400"
+           >
+               🔄 Reconnect
+               </button>
+            </>
+
+           )}
+
+           {hasActiveSession && (
                <button
                onClick={handleTerminateStream}
                disabled={terminateMutation.isPending}
@@ -325,28 +583,33 @@ export default function PublicStream() {
            )}
        </div>
 
-       <button
-        onClick={toggleInput}
-        className="bg-red-200 text-red-800 px-4 py-2 rounded mb-4"
-       >
-        {isInputAttached ? 'Detach Input' : 'Attach Input'}
-       </button>
+       {/* Gamepad/Fullscreen Controls */}
+        <div className="control-buttons mb-4 space-x-2">
+            <button
+                onClick={toggleInput}
+                disabled={!gameStream || !streamConnected}
+                className="bg-blue-200 text-blue-800 px-4 py-2 rounded disabled:bg-gray-400"
+            >
+                {isInputAttached ? '🎮 Detach Input' : '🎮 Attach Input'}
+            </button>
 
-       <button
-        onClick={toggleFullscreen}
-        className="bg-red-200 text-red-800 px-4 py-2 rounded mb-4"
-       >
-        {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-       </button>
+            <button
+                onClick={toggleFullscreen}
+                disabled={!gameStream}
+                className="bg-green-200 text-green-800 px-4 py-2 rounded disabled:bg-gray-400"
+            >
+                {isFullscreen ? '🔽 Exit Fullscreen' : '🔲 Fullscreen'}
+            </button>
+        </div>
 
+       {/* Stream Area */}
        <div className="stream-area">
            <video
                ref={videoRef}
                autoPlay
-               muted
                playsInline
                controls={false}
-               className="w-full max-w-4xl bg-black"
+               className="w-full max-w-screen bg-black"
            />
            {/* Hidden Audio Element (required by GameLift Streams) */}
             <audio
@@ -357,19 +620,20 @@ export default function PublicStream() {
             />
 
             {/* Status Display */}
-            <div className="status-display p-4 bg-gray-100 rounded mt-4">
+            <div className="status-display p-4 bg-gray-80 rounded mt-4">
                 <p className="text-lg font-medium">{getStatusDisplay()}</p>
                 
                 {streamStatus && (
-                    <div className="text-sm text-gray-600 mt-2">
+                    <div className="text-sm text-gray-5 mt-2">
                     <p>Stream Status: {streamStatus.status}</p>
                     <p>Connection: {connectionState}</p>
                     {isInputAttached && <p>Input: Enabled</p>}
                     {streamStatus.location && <p>Location: {streamStatus.location}</p>}
+                    {currentSession && <p><strong>Session Age:</strong> {Math.round((Date.now() - currentSession.timestamp) / 1000)}s</p>}
                     </div>
                 )}
 
-                {sessionArn && streamStatus?.status === 'ACTIVATING' && (
+                {currentSession && streamStatus?.status === 'ACTIVATING' && (
                     <div className="mt-4">
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-100"></div>
                         <p className="text-sm mt-2">
@@ -380,9 +644,12 @@ export default function PublicStream() {
             </div>
 
         {/* Error Display */}
-        {(startMutation.error || terminateMutation.error) && (
+        {(startMutation.error || terminateMutation.error || streamStatus?.statusReason) && (
           <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            <strong>Error:</strong> {startMutation.error?.message || terminateMutation.error?.message}
+            <strong>⚠️ Error:</strong> {
+            startMutation.error?.message || 
+            terminateMutation.error?.message || 
+            streamStatus?.statusReason}
           </div>
         )}
        </div>
