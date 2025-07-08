@@ -20,3 +20,100 @@
     outline: none !important;
   }
 }
+
+/* Custom scrollbar styles */
+.stat-section::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.stat-section::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 8px;
+}
+
+.stat-section::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+  border-radius: 8px;
+  border: 2px solid #1a1a1a;
+}
+
+.stat-section::-webkit-scrollbar-thumb:hover {
+  background-color: #4a4a4a;
+}
+
+.stat-section {
+  scrollbar-width: auto;
+  scrollbar-color: #3a3a3a #1a1a1a;
+}
+
+/* Disable video controls */
+#streamVideoElement::-webkit-media-controls {
+  display: none !important;
+}
+
+/* Safe area insets for mobile */
+.controls-container {
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Fullscreen styles */
+#streamFullscreenContainer:fullscreen {
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Animation keyframes */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes connectingColorPulse {
+  to { background-color: #058; }
+}
+
+/* Button disable styles */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Touch target improvements */
+.hamburger-menu::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  background-color: transparent;
+}
+
+/* Responsive table styles */
+@media (max-width: 768px) {
+  .virtual-button {
+    transform-origin: bottom left;
+  }
+}
+
+/* Portrait orientation handling */
+@media screen and (orientation: portrait) and (max-width: 768px) {
+  .landscape-forced {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    overflow-x: hidden;
+    position: absolute;
+    top: 100%;
+    left: 0;
+  }
+}

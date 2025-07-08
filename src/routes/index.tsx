@@ -1,5 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
-import PublicStream from '../components/PublicStream'
+import { createFileRoute, Link } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -11,7 +10,7 @@ function Home() {
       <h1 className="text-4xl font-bold mb-8 text-center">
         Game Stream
       </h1>
-      <PublicStream />
+      <Link to="/streams">Streams</Link>
     </div>
   )
 }

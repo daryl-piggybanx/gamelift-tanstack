@@ -5,6 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { startStream, getStreamStatus, terminateStream } from '../integrations/gamelift/service'
 import { useSessionManager } from '~/hooks/session-manager'
 import { GameSession } from '~/integrations/gamelift/types'
+import { TouchToMouse, VirtualGamepadJoystick, VirtualButton, StreamControlButtons } from './Controls'
+import { LoadingScreen, OrientationHandler } from './StreamView'
+
 
 import * as gameliftstreamssdk from '../gamelift-streams-websdk/gameliftstreams-1.0.0'
 
@@ -42,6 +45,14 @@ export default function PublicStream() {
 
     const [sdkInitialized, setSdkInitialized] = useState(false);
     const [isStreamStarted, setIsStreamStarted] = useState(false);
+
+    const [showLoadingScreen, setShowLoadingScreen] = useState(true);
+    const [mobileControlsVisible, setMobileControlsVisible] = useState(true);
+
+    const isMobile = () => {
+        return window.innerWidth <= 768 || /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    };
+
 
     // track fullscreen state
     useEffect(() => {
@@ -485,6 +496,11 @@ export default function PublicStream() {
     }
   }
 
+    const handleLoadingScreenInteraction = () => {
+        console.log('Loading screen interaction detected');
+        setShowLoadingScreen(false);
+    };
+
    const getStatusDisplay = () => {
     if (!sdkInitialized) return '⚙️ Initializing SDK...';
     if (!gameStream) return '⚙️ Setting up SDK...';
@@ -515,144 +531,210 @@ export default function PublicStream() {
    }
 
 
-  // ✅ DEBUG: Create test session to verify query behavior
-  const createTestSession = () => {
-    const testSession: GameSession = {
-        sessionArn: 'arn:aws:gameliftstreams:us-west-2:123456789:streamsession/sg-428ua6I76/test-session',
-        streamGroupId: 'sg-428ua6I76',
-        userId: 'test-user',
-        applicationId: 'a-MW4ufczOV',
-        location: 'us-west-2',
-        timestamp: Date.now(),
-        status: 'connecting'
-    };
-    console.log('🧪 Creating test session for debugging');
-    setCurrentSession(testSession);
-   };
-
    const canStartNewSession = sdkInitialized && gameStream && !streamConnected;
    const hasActiveSession = currentSession && currentSession.status !== 'terminated';
    const canReconnect = hasActiveSession && !streamConnected;
 
+    const buttonConfigs = [
+        // D-pad buttons
+        { svgName: 'dPadUp', x: 24, y: 26, keyCode: 'ArrowUp', keyCodeNum: 38, direction: 'up' as const },
+        { svgName: 'dPadDown', x: 24, y: 11, keyCode: 'ArrowDown', keyCodeNum: 40, direction: 'down' as const },
+        { svgName: 'dPadLeft', x: 18, y: 23.5, keyCode: 'ArrowLeft', keyCodeNum: 37, direction: 'left' as const },
+        { svgName: 'dPadRight', x: 26.5, y: 23.5, keyCode: 'ArrowRight', keyCodeNum: 39, direction: 'right' as const },
+
+        // Face buttons
+        { svgName: 'buttonA', x: 63.6, y: 9.15, keyCode: 'KeyA', keyCodeNum: 65 },
+        { svgName: 'buttonB', x: 68, y: 18.7, keyCode: 'KeyB', keyCodeNum: 66 },
+        { svgName: 'buttonX', x: 58.7, y: 18.8, keyCode: 'KeyX', keyCodeNum: 88 },
+        { svgName: 'buttonY', x: 63.3, y: 29.5, keyCode: 'KeyY', keyCodeNum: 89 },
+    ];
+
    return (
-       <div className="public-game-container p-4">
-        {/* Session Debug Info */}
-        <div className="mb-4 p-2 bg-slate-100 text-slate-800 rounded text-xs">
-            <p><strong>SDK:</strong> {sdkInitialized ? '✅ Ready' : '❌ Not Ready'}</p>
-            <p><strong>Session:</strong> {hasActiveSession ? `✅ ${currentSession?.sessionArn?.slice(-8)}` : '❌ None'}</p>
-            <p><strong>Connection:</strong> {connectionState} | Stream: {streamConnected ? '✅' : '❌'}</p>
-        </div>
-        {/* Stream controls */}
-       <div className="mb-4 space-x-2">
-           <button
-           onClick={handleStartStream}
-           disabled={startMutation.isPending || (!canStartNewSession && !canReconnect)}
-           className="bg-slate-80 text-slate-100px-4 py-2 rounded disabled:bg-gray-400"
-           >
-                {startMutation.isPending ? 'Starting...' : 
-                canStartNewSession ? '🔄 Start New Session' : '🎮 Start Session'}
-           </button>
+    <OrientationHandler forceOrientation={isMobile() ? 'landscape' : 'auto'}>
+        <div className="p-4 bg-[#313033] text-white min-h-screen font-arial">
+            {/* Stream Control Buttons - Mobile & Fullscreen Only */}
+            {streamConnected && (isMobile() || isFullscreen) && (
+                <StreamControlButtons
+                    onTerminate={handleTerminateStream}
+                    onViewControls={() => console.log('View controls clicked')}
+                    onToggleTouch={() => setMobileControlsVisible(!mobileControlsVisible)}
+                    onEditControls={() => console.log('Edit controls clicked')}
+                    visible={true}
+                />
+            )}
 
-           {canReconnect && (
-            <>
-               <button
-                onClick={createTestSession}
-                className="bg-yellow-500 text-white px-4 py-2 rounded text-xs"
-            >
-                🧪 Test Session
-            </button>
-               <button
-               onClick={handleReconnectSession}
-               disabled={startMutation.isPending}
-               className="bg-blue-200 text-blue-800 px-4 py-2 rounded disabled:bg-gray-400"
-           >
-               🔄 Reconnect
-               </button>
-            </>
+            {/* Session Debug Info */}
+            <div className="mb-4 p-2 bg-slate-100 text-slate-800 rounded text-xs">
+                <p><strong>SDK:</strong> {sdkInitialized ? '✅ Ready' : '❌ Not Ready'}</p>
+                <p><strong>Session:</strong> {hasActiveSession ? `✅ ${currentSession?.sessionArn?.slice(-8)}` : '❌ None'}</p>
+                <p><strong>Connection:</strong> {connectionState} | Stream: {streamConnected ? '✅' : '❌'}</p>
+            </div>
 
-           )}
+            {/* Stream controls */}
+            <div className="mb-4 space-x-2 flex flex-wrap">
+                <button
+                    onClick={handleStartStream}
+                    disabled={startMutation.isPending || (!canStartNewSession && !canReconnect)}
+                    className="bg-slate-800 text-slate-100 px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-slate-700"
+                >
+                    {startMutation.isPending ? 'Starting...' : 
+                    canStartNewSession ? '🔄 Start New Session' : '🎮 Start Session'}
+                </button>
 
-           {hasActiveSession && (
-               <button
-               onClick={handleTerminateStream}
-               disabled={terminateMutation.isPending}
-               className="bg-red-200 text-red-800 px-4 py-2 rounded disabled:bg-gray-400"
-           >
-               {terminateMutation.isPending ? 'Terminating...' : 'Terminate Stream'}
-               </button>
-           )}
-       </div>
-
-       {/* Gamepad/Fullscreen Controls */}
-        <div className="control-buttons mb-4 space-x-2">
-            <button
-                onClick={toggleInput}
-                disabled={!gameStream || !streamConnected}
-                className="bg-blue-200 text-blue-800 px-4 py-2 rounded disabled:bg-gray-400"
-            >
-                {isInputAttached ? '🎮 Detach Input' : '🎮 Attach Input'}
-            </button>
-
-            <button
-                onClick={toggleFullscreen}
-                disabled={!gameStream}
-                className="bg-green-200 text-green-800 px-4 py-2 rounded disabled:bg-gray-400"
-            >
-                {isFullscreen ? '🔽 Exit Fullscreen' : '🔲 Fullscreen'}
-            </button>
-        </div>
-
-       {/* Stream Area */}
-       <div className="stream-area">
-           <video
-               ref={videoRef}
-               autoPlay
-               playsInline
-               controls={false}
-               className="w-full max-w-screen bg-black"
-           />
-           {/* Hidden Audio Element (required by GameLift Streams) */}
-            <audio
-                ref={audioRef}
-                autoPlay
-                muted={false}
-                style={{ display: 'none' }}
-            />
-
-            {/* Status Display */}
-            <div className="status-display p-4 bg-gray-80 rounded mt-4">
-                <p className="text-lg font-medium">{getStatusDisplay()}</p>
-                
-                {streamStatus && (
-                    <div className="text-sm text-gray-5 mt-2">
-                    <p>Stream Status: {streamStatus.status}</p>
-                    <p>Connection: {connectionState}</p>
-                    {isInputAttached && <p>Input: Enabled</p>}
-                    {streamStatus.location && <p>Location: {streamStatus.location}</p>}
-                    {currentSession && <p><strong>Session Age:</strong> {Math.round((Date.now() - currentSession.timestamp) / 1000)}s</p>}
-                    </div>
+                {canReconnect && (
+                    <button
+                        onClick={handleReconnectSession}
+                        disabled={startMutation.isPending}
+                        className="bg-blue-200 text-blue-800 px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-blue-300"
+                    >
+                        🔄 Reconnect
+                    </button>
                 )}
 
-                {currentSession && streamStatus?.status === 'ACTIVATING' && (
-                    <div className="mt-4">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-100"></div>
-                        <p className="text-sm mt-2">
-                            Starting stream... May take up to 5 minutes.
-                        </p>
-                    </div>
+                {hasActiveSession && (
+                    <button
+                        onClick={handleTerminateStream}
+                        disabled={terminateMutation.isPending}
+                        className="bg-red-200 text-red-800 px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-red-300"
+                    >
+                        {terminateMutation.isPending ? 'Terminating...' : 'Terminate Stream'}
+                    </button>
                 )}
             </div>
 
-        {/* Error Display */}
-        {(startMutation.error || terminateMutation.error || streamStatus?.statusReason) && (
-          <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded">
-            <strong>⚠️ Error:</strong> {
-            startMutation.error?.message || 
-            terminateMutation.error?.message || 
-            streamStatus?.statusReason}
-          </div>
-        )}
-       </div>
-       </div>
+            {/* Gamepad/Fullscreen Controls */}
+            <div className="mb-4 space-x-2 flex flex-wrap">
+                <button
+                    onClick={toggleInput}
+                    disabled={!gameStream || !streamConnected}
+                    className="bg-blue-200 text-blue-800 px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-blue-300"
+                >
+                    {isInputAttached ? '🎮 Detach Input' : '🎮 Attach Input'}
+                </button>
+
+                <button
+                    onClick={toggleFullscreen}
+                    disabled={!gameStream}
+                    className="bg-green-200 text-green-800 px-4 py-2 rounded disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200 hover:bg-green-300"
+                >
+                    {isFullscreen ? '🔽 Exit Fullscreen' : '🔲 Fullscreen'}
+                </button>
+
+                {isMobile() && (
+                    <button
+                        onClick={() => setMobileControlsVisible(!mobileControlsVisible)}
+                        className="bg-purple-200 text-purple-800 px-4 py-2 rounded transition-colors duration-200 hover:bg-purple-300"
+                    >
+                        {mobileControlsVisible ? '📱 Hide Controls' : '📱 Show Controls'}
+                    </button>
+                )}
+            </div>
+
+            {/* Stream Area */}
+            <div className="relative">
+                <TouchToMouse enabled={streamConnected} allowedElement={videoRef.current}>
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        controls={false}
+                        className="w-full max-w-full bg-black rounded-lg"
+                    />
+                </TouchToMouse>
+
+                {/* Loading Screen Overlay */}
+                {showLoadingScreen && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/50 rounded-lg">
+                        <LoadingScreen 
+                            visible={showLoadingScreen}
+                            onInteraction={handleLoadingScreenInteraction}
+                        />
+                    </div>
+                )}
+
+                {/* Mobile Virtual Controls */}
+                {isMobile() && mobileControlsVisible && streamConnected && (
+                    <div className="fixed inset-0 pointer-events-none z-[30000]">
+                        {/* Virtual Joysticks */}
+                        <VirtualGamepadJoystick
+                            x={1.3}
+                            y={2.3}
+                            type="left"
+                            onMove={(event) => console.log('Left joystick move:', event)}
+                            onStart={(event) => console.log('Left joystick start:', event)}
+                            onStop={(event) => console.log('Left joystick stop:', event)}
+                        />
+                        <VirtualGamepadJoystick
+                            x={84.8}
+                            y={2.9}
+                            type="right"
+                            onMove={(event) => console.log('Right joystick move:', event)}
+                            onStart={(event) => console.log('Right joystick start:', event)}
+                            onStop={(event) => console.log('Right joystick stop:', event)}
+                        />
+
+                        {/* Virtual Buttons */}
+                        {buttonConfigs.map((config) => (
+                            <VirtualButton
+                                key={config.svgName}
+                                svgName={config.svgName}
+                                x={config.x}
+                                y={config.y}
+                                keyCode={config.keyCode}
+                                keyCodeNum={config.keyCodeNum}
+                                direction={config.direction}
+                                onPress={() => console.log(`${config.svgName} pressed`)}
+                                onRelease={() => console.log(`${config.svgName} released`)}
+                                visible={mobileControlsVisible}
+                            />
+                        ))}
+                    </div>
+                )}
+
+                {/* Hidden Audio Element */}
+                <audio
+                    ref={audioRef}
+                    autoPlay
+                    muted={false}
+                    className="hidden"
+                />
+
+                {/* Status Display */}
+                <div className="mt-4 p-4 bg-gray-800 rounded-lg">
+                    <p className="text-lg font-medium text-white">{getStatusDisplay()}</p>
+                    
+                    {streamStatus && (
+                        <div className="text-sm text-gray-400 mt-2 space-y-1">
+                            <p>Stream Status: <span className="text-white">{streamStatus.status}</span></p>
+                            <p>Connection: <span className="text-white">{connectionState}</span></p>
+                            {isInputAttached && <p className="text-green-400">Input: Enabled</p>}
+                            {streamStatus.location && <p>Location: <span className="text-white">{streamStatus.location}</span></p>}
+                            {currentSession && <p><strong>Session Age:</strong> <span className="text-white">{Math.round((Date.now() - currentSession.timestamp) / 1000)}s</span></p>}
+                        </div>
+                    )}
+
+                    {currentSession && streamStatus?.status === 'ACTIVATING' && (
+                        <div className="mt-4 flex items-center space-x-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-100"></div>
+                            <p className="text-sm text-gray-300">
+                                Starting stream... May take up to 5 minutes.
+                            </p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Error Display */}
+                {(startMutation.error || terminateMutation.error || streamStatus?.statusReason) && (
+                    <div className="mt-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                        <strong>⚠️ Error:</strong> {
+                            startMutation.error?.message || 
+                            terminateMutation.error?.message || 
+                            streamStatus?.statusReason
+                        }
+                    </div>
+                )}
+            </div>
+        </div>
+    </OrientationHandler>
    )
 }
