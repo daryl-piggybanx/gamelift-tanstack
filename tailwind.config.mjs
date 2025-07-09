@@ -1,52 +1,108 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./src/**/*.{js,jsx,ts,tsx}'],
+    darkMode: ['class'],
+    content: ['./src/**/*.{js,jsx,ts,tsx}'],
   theme: {
-    extend: {
-      fontFamily: {
-        'arial': ['Arial', 'Helvetica', 'sans-serif'],
-      },
-      colors: {
-        'app-bg': '#313033',
-        'blue-primary': '#539FE5',
-        'blue-secondary': '#424650',
-        'gray-primary': '#666666',
-        'red-primary': '#701F1F',
-      },
-      zIndex: {
-        '9999': '9999',
-        '30000': '30000',
-        '99999': '99999',
-      },
-      animation: {
-        'spin-slow': 'spin 2s linear infinite',
-        'fade-in': 'fadeIn 0.5s ease-in-out',
-        'connecting-pulse': 'connectingColorPulse 1s linear alternate-reverse infinite',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        connectingColorPulse: {
-          'to': { backgroundColor: '#058' },
-        },
-      },
-      dropShadow: {
-        'virtual-control': [
-          '0 0 2px rgba(84, 84, 84, 0.3)',
-          '0 0 4px rgba(110, 110, 110, 0.5)',
-        ],
-        'virtual-control-pressed': [
-          '0 0 8px rgba(112, 112, 112, 0.8)',
-          '0 0 12px rgba(101, 101, 101, 0.6)',
-          '0 0 16px rgba(78, 78, 78, 0.4)',
-        ],
-      },
-      aspectRatio: {
-        '16/9': '16 / 9',
-      },
-    },
+  	extend: {
+  		fontFamily: {
+  			arial: [
+  				'Arial',
+  				'Helvetica',
+  				'sans-serif'
+  			]
+  		},
+  		colors: {
+  			'app-bg': '#313033',
+  			'blue-primary': '#539FE5',
+  			'blue-secondary': '#424650',
+  			'gray-primary': '#666666',
+  			'red-primary': '#701F1F',
+  			background: 'hsl(var(--background))',
+  			foreground: 'hsl(var(--foreground))',
+  			card: {
+  				DEFAULT: 'hsl(var(--card))',
+  				foreground: 'hsl(var(--card-foreground))'
+  			},
+  			popover: {
+  				DEFAULT: 'hsl(var(--popover))',
+  				foreground: 'hsl(var(--popover-foreground))'
+  			},
+  			primary: {
+  				DEFAULT: 'hsl(var(--primary))',
+  				foreground: 'hsl(var(--primary-foreground))'
+  			},
+  			secondary: {
+  				DEFAULT: 'hsl(var(--secondary))',
+  				foreground: 'hsl(var(--secondary-foreground))'
+  			},
+  			muted: {
+  				DEFAULT: 'hsl(var(--muted))',
+  				foreground: 'hsl(var(--muted-foreground))'
+  			},
+  			accent: {
+  				DEFAULT: 'hsl(var(--accent))',
+  				foreground: 'hsl(var(--accent-foreground))'
+  			},
+  			destructive: {
+  				DEFAULT: 'hsl(var(--destructive))',
+  				foreground: 'hsl(var(--destructive-foreground))'
+  			},
+  			border: 'hsl(var(--border))',
+  			input: 'hsl(var(--input))',
+  			ring: 'hsl(var(--ring))',
+  			chart: {
+  				'1': 'hsl(var(--chart-1))',
+  				'2': 'hsl(var(--chart-2))',
+  				'3': 'hsl(var(--chart-3))',
+  				'4': 'hsl(var(--chart-4))',
+  				'5': 'hsl(var(--chart-5))'
+  			}
+  		},
+  		zIndex: {
+  			'9999': '9999',
+  			'30000': '30000',
+  			'99999': '99999'
+  		},
+  		animation: {
+  			'spin-slow': 'spin 2s linear infinite',
+  			'fade-in': 'fadeIn 0.5s ease-in-out',
+  			'connecting-pulse': 'connectingColorPulse 1s linear alternate-reverse infinite'
+  		},
+  		keyframes: {
+  			fadeIn: {
+  				'0%': {
+  					opacity: '0'
+  				},
+  				'100%': {
+  					opacity: '1'
+  				}
+  			},
+  			connectingColorPulse: {
+  				to: {
+  					backgroundColor: '#058'
+  				}
+  			}
+  		},
+  		dropShadow: {
+  			'virtual-control': [
+  				'0 0 2px rgba(84, 84, 84, 0.3)',
+  				'0 0 4px rgba(110, 110, 110, 0.5)'
+  			],
+  			'virtual-control-pressed': [
+  				'0 0 8px rgba(112, 112, 112, 0.8)',
+  				'0 0 12px rgba(101, 101, 101, 0.6)',
+  				'0 0 16px rgba(78, 78, 78, 0.4)'
+  			]
+  		},
+  		aspectRatio: {
+  			'16/9': '16 / 9'
+  		},
+  		borderRadius: {
+  			lg: 'var(--radius)',
+  			md: 'calc(var(--radius) - 2px)',
+  			sm: 'calc(var(--radius) - 4px)'
+  		}
+  	}
   },
   plugins: [
     function({ addUtilities, theme }) {
@@ -220,5 +276,6 @@ export default {
       
       addUtilities(newUtilities);
     },
-  ],
+      require("tailwindcss-animate")
+],
 }

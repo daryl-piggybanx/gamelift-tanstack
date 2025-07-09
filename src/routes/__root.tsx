@@ -14,6 +14,8 @@ import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import appCss from '~/styles/app.css?url'
 import { seo } from '~/utils/seo'
+import { ClerkProvider } from '@clerk/tanstack-react-start'
+import { dark } from '@clerk/themes'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -29,8 +31,8 @@ export const Route = createRootRouteWithContext<{
       },
       ...seo({
         title:
-          'TanStack Start | Type-Safe, Client-First, Full-Stack React Framework',
-        description: `TanStack Start is a type-safe, client-first, full-stack React framework. `,
+          'Into the PiggyVerse',
+        description: `Digital Universe with Tangible Art`,
       }),
     ],
     links: [
@@ -50,7 +52,7 @@ export const Route = createRootRouteWithContext<{
         rel: 'icon',
         type: 'image/png',
         sizes: '16x16',
-        href: '/favicon-16x16.png',
+        href: '/Logo-Bolt-Black.png',
       },
       { rel: 'manifest', href: '/site.webmanifest', color: '#fffff' },
       { rel: 'icon', href: '/favicon.ico' },
@@ -77,7 +79,13 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html>
+    <ClerkProvider
+      appearance={{
+        // baseTheme: dark,
+        cssLayerName: 'clerk',
+      }}
+    >
+    <html className="dark">
       <head>
         <HeadContent />
       </head>
@@ -89,5 +97,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
+    </ClerkProvider>
   )
 }

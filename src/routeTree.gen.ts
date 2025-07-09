@@ -12,6 +12,7 @@ import { createServerRootRoute } from '@tanstack/react-start/server'
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StreamsRouteImport } from './routes/streams'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as RedirectRouteImport } from './routes/redirect'
 import { Route as DeferredRouteImport } from './routes/deferred'
 import { Route as PathlessLayoutRouteImport } from './routes/_pathlessLayout'
@@ -34,6 +35,11 @@ const rootServerRouteImport = createServerRootRoute()
 const StreamsRoute = StreamsRouteImport.update({
   id: '/streams',
   path: '/streams',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RedirectRoute = RedirectRouteImport.update({
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRouteRouteWithChildren
   '/deferred': typeof DeferredRoute
   '/redirect': typeof RedirectRoute
+  '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
   '/posts/$postId': typeof PostsPostIdRoute
   '/users/$userId': typeof UsersUserIdRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/deferred': typeof DeferredRoute
   '/redirect': typeof RedirectRoute
+  '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
   '/posts/$postId': typeof PostsPostIdRoute
   '/users/$userId': typeof UsersUserIdRoute
@@ -154,6 +162,7 @@ export interface FileRoutesById {
   '/_pathlessLayout': typeof PathlessLayoutRouteWithChildren
   '/deferred': typeof DeferredRoute
   '/redirect': typeof RedirectRoute
+  '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
   '/_pathlessLayout/_nested-layout': typeof PathlessLayoutNestedLayoutRouteWithChildren
   '/posts/$postId': typeof PostsPostIdRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/deferred'
     | '/redirect'
+    | '/sign-in'
     | '/streams'
     | '/posts/$postId'
     | '/users/$userId'
@@ -185,6 +195,7 @@ export interface FileRouteTypes {
     | '/'
     | '/deferred'
     | '/redirect'
+    | '/sign-in'
     | '/streams'
     | '/posts/$postId'
     | '/users/$userId'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/_pathlessLayout'
     | '/deferred'
     | '/redirect'
+    | '/sign-in'
     | '/streams'
     | '/_pathlessLayout/_nested-layout'
     | '/posts/$postId'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   PathlessLayoutRoute: typeof PathlessLayoutRouteWithChildren
   DeferredRoute: typeof DeferredRoute
   RedirectRoute: typeof RedirectRoute
+  SignInRoute: typeof SignInRoute
   StreamsRoute: typeof StreamsRoute
   PostsPostIdDeepRoute: typeof PostsPostIdDeepRoute
 }
@@ -254,6 +267,13 @@ declare module '@tanstack/react-router' {
       path: '/streams'
       fullPath: '/streams'
       preLoaderRoute: typeof StreamsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/redirect': {
@@ -452,6 +472,7 @@ const rootRouteChildren: RootRouteChildren = {
   PathlessLayoutRoute: PathlessLayoutRouteWithChildren,
   DeferredRoute: DeferredRoute,
   RedirectRoute: RedirectRoute,
+  SignInRoute: SignInRoute,
   StreamsRoute: StreamsRoute,
   PostsPostIdDeepRoute: PostsPostIdDeepRoute,
 }
