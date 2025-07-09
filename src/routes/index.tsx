@@ -3,6 +3,7 @@ import { getAuth } from '@clerk/tanstack-react-start/server'
 import { getWebRequest } from '@tanstack/react-start/server'
 import { createServerFn } from '@tanstack/react-start'
 import { authStateFn } from '~/integrations/clerk/service'
+import { Leaderboard } from '~/components/leaderboard/leaderboard'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -15,11 +16,8 @@ export const Route = createFileRoute('/')({
 function Home() {
   const state = Route.useLoaderData()
   return (
-    <div className="container mx-auto p-8">
-      <h1 className="text-4xl font-bold mb-8 text-center">
-        Game Stream
-      </h1>
-      <Link to="/streams">Streams</Link>
+    <div className="container mx-auto p-8"> 
+      <Leaderboard />
     </div>
   )
 }

@@ -1,23 +1,21 @@
 import type { LeaderboardData } from "~/components/leaderboard/types"
+import logo from '~/assets/Logo-Bolt-White.png'
 
 const generateUsers = (count: number, scoreMultiplier: number) => {
   const users = []
   const names = [
-    "ShadowStriker",
-    "CyberNinja",
-    "PixelPioneer",
-    "QuantumLeap",
-    "VortexViper",
-    "Ironclad",
-    "StarGazer",
-    "GhostRider",
-    "NightHawk",
-    "BlazeFury",
-    "ArcticFox",
-    "SolarFlare",
-    "ThunderBolt",
-    "MysticMage",
-    "RogueShadow",
+    "User 1",
+    "User 2",
+    "User 3",
+    "User 4",
+    "User 5",
+    "User 6",
+    "User 7",
+    "User 8",
+    "User 9",
+    "User 10",
+    "User 11",
+    "User 12",
   ]
 
   for (let i = 1; i <= count; i++) {
@@ -30,7 +28,7 @@ const generateUsers = (count: number, scoreMultiplier: number) => {
       id: `user-${i}-${Math.random()}`,
       rank: i,
       name: `${names[nameIndex]}${i}`,
-      avatar: `/placeholder.svg?width=48&height=48&query=${names[nameIndex]}`,
+      avatar: logo,
       score,
       change,
     })
@@ -46,18 +44,13 @@ export const primaryLeaderboard: LeaderboardData = {
 
 export const achievementLeaderboards: LeaderboardData[] = [
   {
-    id: "headshots",
-    title: "Most Headshots",
-    users: generateUsers(15, 1.2),
-  },
-  {
     id: "speedrun",
     title: "Fastest Speedrun",
     users: generateUsers(15, 0.8),
   },
   {
-    id: "treasures",
-    title: "Treasures Found",
+    id: "treasure-hunter",
+    title: "Art Pieces Found",
     users: generateUsers(15, 1),
   },
   {

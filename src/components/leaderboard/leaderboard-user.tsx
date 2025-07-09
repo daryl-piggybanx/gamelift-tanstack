@@ -10,15 +10,15 @@ interface LeaderboardUserProps {
 }
 
 const rankClasses: { [key: number]: string } = {
-  1: "bg-gradient-to-r from-amber-400 to-yellow-500 border-yellow-400",
-  2: "bg-gradient-to-r from-slate-300 to-slate-400 border-slate-300",
-  3: "bg-gradient-to-r from-amber-600 to-orange-700 border-orange-600",
+  1: "bg-gradient-to-r from-red-800 to-red-500 border-red-400",
+  2: "bg-gradient-to-r from-red-500 to-red-400 border-red-300",
+  3: "bg-gradient-to-r from-red-300 to-red-500 border-red-600",
 }
 
 const rankIconClasses: { [key: number]: string } = {
-  1: "text-yellow-300",
-  2: "text-slate-200",
-  3: "text-orange-400",
+  1: "text-neutral-100",
+  2: "text-neutral-200",
+  3: "text-neutral-300",
 }
 
 const RankChangeIndicator = ({ change }: { change: User["change"] }) => {
@@ -53,7 +53,7 @@ export function LeaderboardUser({ user }: LeaderboardUserProps) {
           alt={user.name}
           width={48}
           height={48}
-          className="rounded-full border-2 border-gray-600 object-cover"
+          className="rounded-full border-2 border-transparent object-cover"
         />
         <div className="flex-grow">
           <p className="font-semibold text-white">{user.name}</p>

@@ -16,6 +16,7 @@ import appCss from '~/styles/app.css?url'
 import { seo } from '~/utils/seo'
 import { ClerkProvider } from '@clerk/tanstack-react-start'
 import { dark } from '@clerk/themes'
+import { Navbar } from '~/components/navbar'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -90,7 +91,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <hr />
+        <Navbar />
         {children}
         <TanStackRouterDevtools position="bottom-right" />
         <ReactQueryDevtools buttonPosition="bottom-left" />
