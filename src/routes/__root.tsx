@@ -14,7 +14,7 @@ import { DefaultCatchBoundary } from '~/components/DefaultCatchBoundary'
 import { NotFound } from '~/components/NotFound'
 import appCss from '~/styles/app.css?url'
 import { seo } from '~/utils/seo'
-import { ClerkProvider } from '@clerk/tanstack-react-start'
+import { ClerkProvider, SignedIn } from '@clerk/tanstack-react-start'
 import { dark } from '@clerk/themes'
 import { Navbar } from '~/components/navbar'
 
@@ -84,6 +84,12 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       appearance={{
         // baseTheme: dark,
         cssLayerName: 'clerk',
+        elements: {
+          headerSubtitle: "hidden",
+          subtitle: "hidden",
+          footer: "hidden",
+          footerInner: "flex",
+        }
       }}
     >
     <html className="dark">
@@ -91,7 +97,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <Navbar />
+        <SignedIn>
+          <Navbar />
+        </SignedIn>
         {children}
         <TanStackRouterDevtools position="bottom-right" />
         <ReactQueryDevtools buttonPosition="bottom-left" />

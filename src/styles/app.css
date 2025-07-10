@@ -78,7 +78,13 @@
 .cl-header img {
   
 }
-
+.cl-headerTitle {
+  display: none;
+}
+.cl-headerSubtitle {
+  display: none;
+}
+.cl-footer {}
 
 /* Custom scrollbar styles */
 .stat-section::-webkit-scrollbar {
