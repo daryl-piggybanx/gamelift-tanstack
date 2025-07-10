@@ -16,7 +16,8 @@ import appCss from '~/styles/app.css?url'
 import { seo } from '~/utils/seo'
 import { ClerkProvider, SignedIn } from '@clerk/tanstack-react-start'
 import { dark } from '@clerk/themes'
-import { Navbar } from '~/components/navbar'
+// import { Navbar } from '~/components/navbar'
+import { MegaMenu as Navbar } from '~/components/navbar/mega-menu'
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -85,10 +86,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         // baseTheme: dark,
         cssLayerName: 'clerk',
         elements: {
-          headerSubtitle: "hidden",
-          subtitle: "hidden",
-          footer: "hidden",
-          footerInner: "flex",
+          // headerSubtitle: "hidden",
+          // subtitle: "hidden",
+          // footer: "hidden",
+          // footerInner: "flex",
         }
       }}
     >

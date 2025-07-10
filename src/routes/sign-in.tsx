@@ -3,6 +3,7 @@ import { Button } from '~/components/ui/button'
 import logo from '~/assets/Logo-Bolt-White.png'
 import { createFileRoute } from '@tanstack/react-router'
 import LoginForm from '~/components/forms/login'
+import WaitlistForm from '~/components/forms/waitlist'
 
 export const Route = createFileRoute('/sign-in')({
   component: RouteComponent,
@@ -24,7 +25,7 @@ function RouteComponent() {
         </header>
         <main className="flex-grow flex items-center justify-center">
           <div className="w-full max-w-md p-8 space-y-8">
-            <LoginForm />
+            <WaitlistForm />
           </div>
         </main>
       </div>
