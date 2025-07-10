@@ -24,7 +24,6 @@ export default function LoginForm() {
             //   card: "w-full shadow-none border-0 bg-black/25",
               headerTitle: "hidden",
               header: "hidden",
-              footer: "hidden",
             },
             layout: {
               logoImageUrl: logo,
