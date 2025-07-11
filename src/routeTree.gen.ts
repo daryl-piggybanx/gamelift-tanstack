@@ -13,7 +13,9 @@ import { createServerRootRoute } from '@tanstack/react-start/server'
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StreamsRouteImport } from './routes/streams'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as ShopRouteImport } from './routes/shop'
 import { Route as RedirectRouteImport } from './routes/redirect'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as DeferredRouteImport } from './routes/deferred'
 import { Route as PathlessLayoutRouteImport } from './routes/_pathlessLayout'
 import { Route as UsersRouteRouteImport } from './routes/users.route'
@@ -42,9 +44,19 @@ const SignInRoute = SignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopRoute = ShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RedirectRoute = RedirectRouteImport.update({
   id: '/redirect',
   path: '/redirect',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DeferredRoute = DeferredRouteImport.update({
@@ -129,7 +141,9 @@ export interface FileRoutesByFullPath {
   '/posts': typeof PostsRouteRouteWithChildren
   '/users': typeof UsersRouteRouteWithChildren
   '/deferred': typeof DeferredRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/redirect': typeof RedirectRoute
+  '/shop': typeof ShopRoute
   '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -143,7 +157,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/deferred': typeof DeferredRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/redirect': typeof RedirectRoute
+  '/shop': typeof ShopRoute
   '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
   '/posts/$postId': typeof PostsPostIdRoute
@@ -161,7 +177,9 @@ export interface FileRoutesById {
   '/users': typeof UsersRouteRouteWithChildren
   '/_pathlessLayout': typeof PathlessLayoutRouteWithChildren
   '/deferred': typeof DeferredRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/redirect': typeof RedirectRoute
+  '/shop': typeof ShopRoute
   '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
   '/_pathlessLayout/_nested-layout': typeof PathlessLayoutNestedLayoutRouteWithChildren
@@ -180,7 +198,9 @@ export interface FileRouteTypes {
     | '/posts'
     | '/users'
     | '/deferred'
+    | '/leaderboard'
     | '/redirect'
+    | '/shop'
     | '/sign-in'
     | '/streams'
     | '/posts/$postId'
@@ -194,7 +214,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/deferred'
+    | '/leaderboard'
     | '/redirect'
+    | '/shop'
     | '/sign-in'
     | '/streams'
     | '/posts/$postId'
@@ -211,7 +233,9 @@ export interface FileRouteTypes {
     | '/users'
     | '/_pathlessLayout'
     | '/deferred'
+    | '/leaderboard'
     | '/redirect'
+    | '/shop'
     | '/sign-in'
     | '/streams'
     | '/_pathlessLayout/_nested-layout'
@@ -230,7 +254,9 @@ export interface RootRouteChildren {
   UsersRouteRoute: typeof UsersRouteRouteWithChildren
   PathlessLayoutRoute: typeof PathlessLayoutRouteWithChildren
   DeferredRoute: typeof DeferredRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   RedirectRoute: typeof RedirectRoute
+  ShopRoute: typeof ShopRoute
   SignInRoute: typeof SignInRoute
   StreamsRoute: typeof StreamsRoute
   PostsPostIdDeepRoute: typeof PostsPostIdDeepRoute
@@ -276,11 +302,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shop': {
+      id: '/shop'
+      path: '/shop'
+      fullPath: '/shop'
+      preLoaderRoute: typeof ShopRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/redirect': {
       id: '/redirect'
       path: '/redirect'
       fullPath: '/redirect'
       preLoaderRoute: typeof RedirectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/deferred': {
@@ -471,7 +511,9 @@ const rootRouteChildren: RootRouteChildren = {
   UsersRouteRoute: UsersRouteRouteWithChildren,
   PathlessLayoutRoute: PathlessLayoutRouteWithChildren,
   DeferredRoute: DeferredRoute,
+  LeaderboardRoute: LeaderboardRoute,
   RedirectRoute: RedirectRoute,
+  ShopRoute: ShopRoute,
   SignInRoute: SignInRoute,
   StreamsRoute: StreamsRoute,
   PostsPostIdDeepRoute: PostsPostIdDeepRoute,
