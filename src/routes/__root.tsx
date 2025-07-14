@@ -82,6 +82,7 @@ function RootComponent() {
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <ClerkProvider
+      waitlistUrl="/waitlist"
       appearance={{
         baseTheme: dark,
         cssLayerName: 'clerk',
@@ -101,6 +102,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <SignedIn>
           <Navbar />
         </SignedIn>
+        
         {children}
         <TanStackRouterDevtools position="bottom-right" />
         <ReactQueryDevtools buttonPosition="bottom-left" />

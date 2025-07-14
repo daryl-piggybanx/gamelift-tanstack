@@ -16,6 +16,7 @@ export default function WaitlistForm() {
       
       <div className="w-full mt-6  bg-cover bg-center bg-no-repeat">
         <Waitlist
+          signInUrl="/sign-in"
           appearance={{
             elements: {
               rootBox: "w-full",

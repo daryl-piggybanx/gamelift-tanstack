@@ -11,6 +11,7 @@
 import { createServerRootRoute } from '@tanstack/react-start/server'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WaitlistRouteImport } from './routes/waitlist'
 import { Route as StreamsRouteImport } from './routes/streams'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as ShopRouteImport } from './routes/shop'
@@ -34,6 +35,11 @@ import { ServerRoute as ApiUsersIdServerRouteImport } from './routes/api/users.$
 
 const rootServerRouteImport = createServerRootRoute()
 
+const WaitlistRoute = WaitlistRouteImport.update({
+  id: '/waitlist',
+  path: '/waitlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StreamsRoute = StreamsRouteImport.update({
   id: '/streams',
   path: '/streams',
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/shop': typeof ShopRoute
   '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
+  '/waitlist': typeof WaitlistRoute
   '/posts/$postId': typeof PostsPostIdRoute
   '/users/$userId': typeof UsersUserIdRoute
   '/posts/': typeof PostsIndexRoute
@@ -162,6 +169,7 @@ export interface FileRoutesByTo {
   '/shop': typeof ShopRoute
   '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
+  '/waitlist': typeof WaitlistRoute
   '/posts/$postId': typeof PostsPostIdRoute
   '/users/$userId': typeof UsersUserIdRoute
   '/posts': typeof PostsIndexRoute
@@ -182,6 +190,7 @@ export interface FileRoutesById {
   '/shop': typeof ShopRoute
   '/sign-in': typeof SignInRoute
   '/streams': typeof StreamsRoute
+  '/waitlist': typeof WaitlistRoute
   '/_pathlessLayout/_nested-layout': typeof PathlessLayoutNestedLayoutRouteWithChildren
   '/posts/$postId': typeof PostsPostIdRoute
   '/users/$userId': typeof UsersUserIdRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sign-in'
     | '/streams'
+    | '/waitlist'
     | '/posts/$postId'
     | '/users/$userId'
     | '/posts/'
@@ -219,6 +229,7 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sign-in'
     | '/streams'
+    | '/waitlist'
     | '/posts/$postId'
     | '/users/$userId'
     | '/posts'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/shop'
     | '/sign-in'
     | '/streams'
+    | '/waitlist'
     | '/_pathlessLayout/_nested-layout'
     | '/posts/$postId'
     | '/users/$userId'
@@ -259,6 +271,7 @@ export interface RootRouteChildren {
   ShopRoute: typeof ShopRoute
   SignInRoute: typeof SignInRoute
   StreamsRoute: typeof StreamsRoute
+  WaitlistRoute: typeof WaitlistRoute
   PostsPostIdDeepRoute: typeof PostsPostIdDeepRoute
 }
 export interface FileServerRoutesByFullPath {
@@ -288,6 +301,13 @@ export interface RootServerRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/waitlist': {
+      id: '/waitlist'
+      path: '/waitlist'
+      fullPath: '/waitlist'
+      preLoaderRoute: typeof WaitlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/streams': {
       id: '/streams'
       path: '/streams'
@@ -516,6 +536,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShopRoute: ShopRoute,
   SignInRoute: SignInRoute,
   StreamsRoute: StreamsRoute,
+  WaitlistRoute: WaitlistRoute,
   PostsPostIdDeepRoute: PostsPostIdDeepRoute,
 }
 export const routeTree = rootRouteImport
