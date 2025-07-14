@@ -33,8 +33,8 @@ export const Route = createRootRouteWithContext<{
       },
       ...seo({
         title:
-          'PiggyBanx Command Center',
-        description: `Platform for managing PiggyBanx's operations`,
+          'Into the PiggyVerse',
+        description: `A virtual world with tangible rewards`,
       }),
     ],
     links: [
@@ -57,7 +57,7 @@ export const Route = createRootRouteWithContext<{
         href: '/Logo-Bolt-White-Circle.png',
       },
       { rel: 'manifest', href: '/site.webmanifest', color: '#fffff' },
-      { rel: 'icon', href: '/favicon.ico' },
+      { rel: 'icon', href: '/Logo-Bolt-White-Circle.png' },
     ],
   }),
   errorComponent: (props) => {
