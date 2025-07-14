@@ -263,7 +263,7 @@ export function MegaMenu() {
       </header>
 
       {/* Spacer to push content below fixed header */}
-      <div className="h-[116px]" />
+      <div className="h-20" />
     </>
   )
 }

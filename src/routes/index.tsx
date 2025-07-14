@@ -5,6 +5,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { authStateFn } from '~/integrations/clerk/service'
 import { Leaderboard } from '~/components/leaderboard/leaderboard'
 
+
 export const Route = createFileRoute('/')({
   component: Home,
   beforeLoad: async () => await authStateFn(),

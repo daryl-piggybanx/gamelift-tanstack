@@ -10,7 +10,7 @@ export const authStateFn = createServerFn()
 
       if (!userId) {
     throw redirect({
-      to: '/sign-in',
+      to: '/waitlist',
     })
   }
 
